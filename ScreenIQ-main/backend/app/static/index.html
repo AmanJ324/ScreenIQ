@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Resume Screener & Job Match Ranker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN for Model Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Premium Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar/Header -->
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fa-solid fa-brain-circuit"></i></div>
+                <div>
+                    <h1>ScreenIQ</h1>
+                    <p class="subtitle">AI Resume Screener & Match Ranker</p>
+                </div>
+            </div>
+            
+            <div class="model-badge-container">
+                <div class="model-badge" id="headerModelStatus">
+                    <span class="pulse-indicator"></span>
+                    <span class="badge-text">Logistic Regression Classifier Active</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Side: Controls & Input Parameters -->
+            <section class="control-panel">
+                <div class="glass-card">
+                    <h2 class="card-title"><i class="fa-solid fa-file-arrow-up"></i> Upload Resumes</h2>
+                    <p class="card-desc">Upload multiple candidate resumes (PDF, DOCX, TXT formats supported)</p>
+                    
+                    <!-- Drag & Drop Zone -->
+                    <div class="upload-zone" id="dropzone">
+                        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt" class="hidden-file-input">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <p class="upload-text">Drag & drop files here or <span class="browse-link">browse</span></p>
+                        <p class="file-limits">PDF, DOCX, TXT up to 10MB each</p>
+                    </div>
+                    
+                    <!-- File List Display -->
+                    <div class="file-list-container hidden" id="fileListContainer">
+                        <h3>Selected Files (<span id="fileCount">0</span>)</h3>
+                        <ul class="file-list" id="fileList"></ul>
+                    </div>
+                </div>
+
+                <div class="glass-card mt-4">
+                    <h2 class="card-title"><i class="fa-solid fa-briefcase"></i> Job Requirements</h2>
+                    <p class="card-desc">Specify job description and target qualifications to rank against</p>
+                    
+                    <form id="jobRequirementsForm" class="req-form">
+                        <!-- Job Description Text -->
+                        <div class="form-group">
+                            <label for="jobDescription"><i class="fa-solid fa-align-left"></i> Job Description</label>
+                            <textarea id="jobDescription" placeholder="Paste the job description here..." required></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <!-- Minimum Experience -->
+                            <div class="form-group">
+                                <label for="minExperience"><i class="fa-solid fa-hourglass-half"></i> Min Experience</label>
+                                <div class="experience-input-wrapper">
+                                    <input type="number" id="minExperience" min="0" max="30" step="0.5" value="2.0">
+                                    <span class="input-addon">years</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Required Education -->
+                            <div class="form-group">
+                                <label for="requiredEducation"><i class="fa-solid fa-graduation-cap"></i> Min Education</label>
+                                <select id="requiredEducation">
+                                    <option value="High School">High School</option>
+                                    <option value="Associate">Associate Degree</option>
+                                    <option value="Bachelor" selected>Bachelor's Degree</option>
+                                    <option value="Master">Master's Degree</option>
+                                    <option value="PhD">PhD / Doctorate</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Required Skills Tags -->
+                        <div class="form-group">
+                            <label for="requiredSkills"><i class="fa-solid fa-tags"></i> Key Skills (Comma separated)</label>
+                            <input type="text" id="requiredSkills" placeholder="e.g. Python, FastAPI, SQL, Scikit-learn">
+                            <small class="form-tip">These skills will be prioritized during matching.</small>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button type="submit" class="btn-primary" id="analyzeBtn">
+                            <span class="btn-text">Screen & Rank Resumes</span>
+                            <span class="btn-loader hidden"><i class="fa-solid fa-spinner fa-spin"></i> Processing...</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right Side: Results & Model Analytics -->
+            <section class="results-panel">
+                
+                <!-- Navigation Tabs -->
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="rankingsTab">
+                        <i class="fa-solid fa-list-ol"></i> Screened Candidates
+                    </button>
+                    <button class="tab-btn" data-tab="analyticsTab">
+                        <i class="fa-solid fa-chart-line"></i> Model Analytics
+                    </button>
+                </div>
+
+                <!-- Tab content container -->
+                <div class="tab-content">
+                    
+                    <!-- TAB 1: Screened Candidates -->
+                    <div class="tab-pane active" id="rankingsTab">
+                        <!-- Welcome State -->
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon"><i class="fa-solid fa-people-arrows"></i></div>
+                            <h3>No Screening Executed Yet</h3>
+                            <p>Upload candidate resumes, enter the job description and requirements, then click "Screen & Rank Resumes" to view the matching candidates list sorted by shortlisting probability.</p>
+                        </div>
+
+                        <!-- Loading Overlay -->
+                        <div class="loading-state hidden" id="loadingState">
+                            <div class="spinner-container">
+                                <div class="double-bounce1"></div>
+                                <div class="double-bounce2"></div>
+                            </div>
+                            <h3>Analyzing Resumes...</h3>
+                            <p id="loadingMessage">Extracting text, analyzing skills, and running Logistic Regression prediction...</p>
+                        </div>
+
+                        <!-- Results Dashboard -->
+                        <div class="results-dashboard hidden" id="resultsDashboard">
+                            
+                            <!-- Score cards summary -->
+                            <div class="summary-cards">
+                                <div class="summary-card">
+                                    <span class="summary-icon purple"><i class="fa-solid fa-users"></i></span>
+                                    <div>
+                                        <h4 id="statTotalResumes">0</h4>
+                                        <p>Resumes Analyzed</p>
+                                    </div>
+                                </div>
+                                <div class="summary-card">
+                                    <span class="summary-icon green"><i class="fa-solid fa-user-check"></i></span>
+                                    <div>
+                                        <h4 id="statShortlisted">0</h4>
+                                        <p>Predicted Shortlist</p>
+                                    </div>
+                                </div>
+                                <div class="summary-card">
+                                    <span class="summary-icon blue"><i class="fa-solid fa-chart-simple"></i></span>
+                                    <div>
+                                        <h4 id="statAvgScore">0%</h4>
+                                        <p>Avg Match Score</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- List of candidate cards -->
+                            <div class="candidates-list-header">
+                                <h3>Ranked Candidates</h3>
+                                <div class="filter-controls">
+                                    <span>Sort: </span>
+                                    <select id="sortBySelect">
+                                        <option value="probability">Shortlist Probability</option>
+                                        <option value="similarity">TF-IDF Similarity</option>
+                                        <option value="experience">Experience</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="candidates-list" id="candidatesList">
+                                <!-- Dynamically filled via JS -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 2: Model Analytics -->
+                    <div class="tab-pane" id="analyticsTab">
+                        <div class="glass-card">
+                            <div class="card-header-actions">
+                                <div>
+                                    <h2 class="card-title"><i class="fa-solid fa-sliders"></i> Classifier Coefficients</h2>
+                                    <p class="card-desc">Feature weights learned by the Logistic Regression classifier representing feature importance in shortlisting.</p>
+                                </div>
+                                <button class="btn-secondary" id="retrainBtn">
+                                    <i class="fa-solid fa-rotate"></i> Retrain Model
+                                </button>
+                            </div>
+
+                            <!-- Coefficient Chart & Weights Grid -->
+                            <div class="analytics-grid">
+                                <div class="chart-container">
+                                    <canvas id="coefficientsChart"></canvas>
+                                </div>
+                                <div class="weights-list">
+                                    <h3>Weight Breakdown</h3>
+                                    <ul id="weightsBreakdown">
+                                        <!-- Dynamically filled -->
+                                    </ul>
+                                    <div class="weights-note">
+                                        <i class="fa-solid fa-info-circle"></i>
+                                        A positive weight indicates that higher values of this feature increase the candidate's probability of being shortlisted.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card mt-4">
+                            <h2 class="card-title"><i class="fa-solid fa-gauge-high"></i> Model Performance</h2>
+                            <p class="card-desc">Model validation scores evaluated on a 20% hold-out test set (Precision target: 87%+).</p>
+                            
+                            <div class="metrics-grid">
+                                <div class="metric-card">
+                                    <span class="metric-value" id="metricAccuracy">0%</span>
+                                    <span class="metric-label">Accuracy</span>
+                                </div>
+                                <div class="metric-card">
+                                    <span class="metric-value highlight" id="metricPrecision">0%</span>
+                                    <span class="metric-label">Precision</span>
+                                </div>
+                                <div class="metric-card">
+                                    <span class="metric-value" id="metricRecall">0%</span>
+                                    <span class="metric-label">Recall</span>
+                                </div>
+                                <div class="metric-card">
+                                    <span class="metric-value" id="metricAUC">0.00</span>
+                                    <span class="metric-label">ROC-AUC</span>
+                                </div>
+                            </div>
+
+                            <div class="model-info-footer">
+                                <p><strong>Dataset Info:</strong> Trained on a benchmark dataset of <span id="metricSamples">500</span> records representing labeled screening decisions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Candidate Detailed Drawer / Modal -->
+    <div class="drawer-overlay" id="detailDrawer">
+        <div class="drawer-content">
+            <button class="drawer-close" id="drawerClose"><i class="fa-solid fa-xmark"></i></button>
+            <div class="drawer-body" id="drawerBody">
+                <!-- Dynamically filled -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification System -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- App Javascript logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
